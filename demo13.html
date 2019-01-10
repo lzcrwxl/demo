@@ -1,0 +1,87 @@
+<html>
+
+<body>
+  用户名：<input type="text" id="username">
+  密码：<input type="password" id="password">
+  <input type="button" value="提交" id="submitBtn">
+  <p id="warn"></p>
+
+</body>
+<script>
+    var username = document.getElementById('username'),
+    password = document.getElementById('password'),
+    warn = document.getElementById('warn'),
+    submitBtn = document.getElementById('submitBtn');
+
+  Function.prototype.before = function (beforefn) {
+    var _self = this
+    return function () {
+      if (beforefn.apply(this, arguments) === false) {
+        return
+      }
+      return _self.apply(this, arguments)
+    }
+  }
+  // 策略模式
+  var vldStrategy = { //策略对象-验证规则
+    isNonEmpty(value, errorMsg) { //输入不为空
+      if (value === '') {
+        return errorMsg
+      }
+    }
+  }
+
+
+  class Validator {
+    constructor() {
+      this.rules = [] // 数组用于存放负责验证的函数
+    }
+    add(domNode, ruleArr) { //添加验证规则
+      var self = this
+      for (var i = 0, rule; rule = ruleArr[i++];) {
+        (function () {
+          var strategyArr = rule.strategy.split(':'),
+            errorMsg = rule.errorMsg
+          self.rules.push(function () {
+            var tempArr = strategyArr.concat()
+            var ruleName = tempArr.shift()
+            tempArr.unshift(domNode.value)
+            tempArr.push(errorMsg)
+            return vldStrategy[ruleName].apply(domNode, tempArr)
+          })
+        })(rule)
+      }
+      return this
+    }
+    start() {
+      for (let i = 0, vldFn; vldFn = this.rules[i++];) {
+        console.log(vldFn)
+        var msg = vldFn()
+        if (msg) {
+          warn.textContent = msg;
+          return false;
+        }
+      }
+    }
+  }
+
+  let vld = new Validator()
+  vld.add(username, [{         // 这边不能直接传 username.value,不然始终获取的是第一次加载的value值
+    strategy: 'isNonEmpty',
+    errorMsg:'账号不能为空'
+  }])
+
+  var formSubmit = () => {
+    var param = {
+      username: username.value,
+      password: password.value
+    }
+    console.log(param)
+    ajax('http://xxx.com', param)
+    return warn.textContent
+  }
+  formSubmit = formSubmit.before(vld.start.bind(vld))
+  submitBtn.onclick = () => formSubmit()
+</script>
+
+</html>
